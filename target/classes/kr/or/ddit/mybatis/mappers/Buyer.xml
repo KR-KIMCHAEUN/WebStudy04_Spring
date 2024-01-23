@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.buyer.dao.BuyerDAO">
+	
+   <resultMap type="BuyerVO" id="buyerMap" autoMapping="true">
+      <id property="buyerId" column="BUYER_ID"/> <!-- 식별성을 가지고 있음. VO 확인..! -->
+      <!-- association : 1:1 관계 바인드 설정 -->
+      <association property="lprod" javaType="hashMap"> <!-- prod.xml에서는 VO로 했던거 있음. 한번 보기 -->
+         <result property="lprodGu" column="LPROD_GU"/>
+         <result property="lprodNm" column="LPROD_NM"/>
+      </association>
+      <collection property="prodList" javaType="list" ofType="ProdVO" autoMapping="true">
+         <id property="prodId" column="PROD_ID"/>
+      </collection>
+   </resultMap>
+   
+
+
+	<select id="selectBuyer" parameterType="String" resultMap="buyerMap">
+			SELECT BUYER_ID,BUYER_NAME, BUYER_LGU,
+			       BUYER_BANK, BUYER_BANKNO, BUYER_BANKNAME,
+			       BUYER_ZIP, BUYER_ADD1, BUYER_ADD2,
+			       BUYER_COMTEL,BUYER_FAX,BUYER_MAIL,
+			       BUYER_CHARGER,BUYER_TELEXT,BUYER_MAIL2,
+			       BUYER_CHARGER2,BUYER_TELEXT2,
+			       LPROD_GU, LPROD_NM,
+			       PROD_ID,PROD_NAME,PROD_COST,PROD_PRICE,
+		    	   PROD_SALE,PROD_MILEAGE
+			FROM BUYER INNER JOIN LPROD ON(BUYER_LGU=LPROD_GU)
+					LEFT OUTER JOIN PROD ON(BUYER_ID=PROD_BUYER)
+			WHERE BUYER_ID = #{buyerId}
+	</select>
+	
+	<sql id="searchFrag">
+		<trim prefix="WHERE" prefixOverrides="AND">
+			<if test="not detailCondition.empty">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(detailCondition.buyerLgu)">
+					AND BUYER_LGU = #{detailCondition.buyerLgu}
+				</if>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(detailCondition.buyerId)">
+					AND BUYER_ID = #{detailCondition.buyerId}
+				</if>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(detailCondition.buyerAdd1)">
+					AND INSTR(BUYER_ADD1, #{detailCondition.buyerAdd1})>0
+				</if>
+			</if>
+		</trim>
+	</sql>
+	
+	<select id = "selectTotalRecord" resultType="int" parameterType="kr.or.ddit.common.paging.PaginationInfo">
+		SELECT COUNT(*)
+		FROM PROD 
+		<include refid="searchFrag"></include>
+	</select>
+	
+	<select id ="selectBuyerList" parameterType="kr.or.ddit.common.paging.PaginationInfo" resultMap="buyerMap">
+		SELECT B.*
+		FROM (
+			SELECT ROWNUM RNUM, A.*
+			FROM(
+				SELECT BUYER_ID,BUYER_NAME,BUYER_LGU,
+                       BUYER_BANK,BUYER_BANKNO,BUYER_BANKNAME,
+                       BUYER_ZIP,BUYER_ADD1,BUYER_ADD2,
+                       BUYER_COMTEL,BUYER_FAX,BUYER_MAIL,
+                       BUYER_CHARGER,BUYER_TELEXT,BUYER_MAIL2,
+                       BUYER_CHARGER2,BUYER_TELEXT2,
+                       LPROD_GU,LPROD_NM
+                FROM BUYER INNER JOIN LPROD ON(BUYER_LGU=LPROD_GU)
+				<include refid="searchFrag" />
+           		ORDER BY BUYER_LGU, BUYER_ID DESC
+
+			) A
+		) B
+		<![CDATA[
+		WHERE RNUM >= #{startRow} AND  RNUM <=#{endRow}
+		]]>
+	</select>
+</mapper>
